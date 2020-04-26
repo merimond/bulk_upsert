@@ -108,20 +108,20 @@ module BulkUpsert
           end
         end
       end
-  
-      options.merge!({
+
+      opts = options.merge({
         to_search:   to_search,
         to_update:   to_update,
         merge_table: "merged"
       })
 
       <<-eos
-        WITH #{options[:merge_table]} AS (
-          #{merge_query(models, options)}
+        WITH #{opts[:merge_table]} AS (
+          #{merge_query(models, opts)}
         ), updated AS (
-          #{update_query(models, options)}
+          #{update_query(models, opts)}
         ), inserted AS (
-          #{insert_query(models, options)}
+          #{insert_query(models, opts)}
         )
         SELECT * FROM updated
         UNION

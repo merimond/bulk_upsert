@@ -54,7 +54,7 @@ module BulkUpsert
     end
 
     current = save_group(group, *args)
-    others  = save(models - group)
+    others  = save(models - group, *args)
     current + others
   end
 
