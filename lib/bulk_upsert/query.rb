@@ -100,8 +100,11 @@ module BulkUpsert
           unless col = ref.foreign_key
             next
           end
+          if ref.options[:optional]
+            next
+          end
           if to_search.include?(col) || to_update.include?(col)
-            raise BelongsToDeficiencyError.new(col)
+            raise BelongsToDeficiencyError.new(col, klass)
           end
         end
       end

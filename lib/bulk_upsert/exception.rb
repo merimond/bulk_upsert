@@ -51,8 +51,8 @@ module BulkUpsert
   end
 
   class BelongsToDeficiencyError < Error
-    def initialize(column)
-      super("Optional flag is not set for `#{column}` belongs_to association")
+    def initialize(column, klass)
+      super("Optional flag is not set for #{klass.name}.#{column} belongs_to association")
     end
   end
 
