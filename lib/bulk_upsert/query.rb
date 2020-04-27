@@ -96,7 +96,10 @@ module BulkUpsert
       end
 
       unless options[:allow_belongs_to]
-        klass.reflections.select do |key, ref|
+        klass.reflections.each do |key, ref|
+          if ref.through_reflection?
+            next
+          end
           unless col = ref.foreign_key
             next
           end
