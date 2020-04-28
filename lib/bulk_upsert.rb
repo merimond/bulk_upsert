@@ -6,7 +6,7 @@ require "bulk_upsert/query"
 
 module BulkUpsert
   def self.save_group(models, *args)
-    Query.new(models).execute(*args)
+    models.empty? ? [] : Query.new(models).execute(*args)
   end
 
   def self.build(klass, atts_to_search, atts_to_update = {}, &block)
