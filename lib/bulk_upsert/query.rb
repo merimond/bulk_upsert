@@ -165,7 +165,7 @@ module BulkUpsert
           raise InconsitentAttrubuteError.new
         end
         unless cols_with_nils.empty?
-          raise MissingValueError.new(cols_with_nils)
+          raise MissingValueError.new(klass, cols_with_nils)
         end
       end
 

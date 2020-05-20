@@ -33,8 +33,8 @@ module BulkUpsert
   end
 
   class MissingValueError < Error
-    def initialize(columns)
-      super "Attribute values contain nils. Consider setting `allow_nulls` flag"
+    def initialize(klass, columns)
+      super "#{klass.name} has NULL values in #{columns.inspect}. Consider setting `allow_nulls` flag"
     end
   end
 
