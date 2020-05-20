@@ -45,7 +45,7 @@ module BulkUpsert
 
     def insert_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", **options)
       to_insert = (to_search | to_update) - [@pkey]
-      to_return = to_insert | [@pkey]
+      to_return = (to_insert | [@pkey]).sort
 
       <<-eos
         INSERT INTO
@@ -62,7 +62,7 @@ module BulkUpsert
     end
 
     def update_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", **options)
-      cols = to_search | to_update | [@pkey]
+      cols = (to_search | to_update | [@pkey]).sort
       cols = cols.map { |a| "result.%s" % a }
       atts = formatted_update_atts(models, {
         source_table: merge_table,
