@@ -43,9 +43,10 @@ module BulkUpsert
       eos
     end
 
-    def insert_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", **options)
+    def insert_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", ignore_conflicts: false, **options)
       to_insert = (to_search | to_update) - [@pkey]
       to_return = (to_insert | [@pkey]).sort
+
 
       <<-eos
         INSERT INTO
@@ -56,6 +57,7 @@ module BulkUpsert
           #{merge_table}
         WHERE
           #{merge_table}.#{merge_key} IS NULL
+        #{ignore_conflicts ? "ON CONFLICT DO NOTHING" : ""}
         RETURNING
           #{to_return.join(", ")}
       eos
