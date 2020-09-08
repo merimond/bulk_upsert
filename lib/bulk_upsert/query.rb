@@ -23,7 +23,7 @@ module BulkUpsert
       search_json = ActiveRecord::Base.connection.quote(search_list.to_json)
       update_json = ActiveRecord::Base.connection.quote(update_list.to_json)
 
-      join = formatted_join_conditions(search_list, options.merge(
+      join = formatted_join_conditions(search_list, **options.merge(
         input_table: "input",
       ))
 
@@ -66,10 +66,10 @@ module BulkUpsert
     def update_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", **options)
       cols = (to_search | to_update | [@pkey]).sort
       cols = cols.map { |a| "result.%s" % a }
-      atts = formatted_update_atts(models, {
+      atts = formatted_update_atts(models,
         source_table: merge_table,
         result_table: "result"
-      })
+      )
 
       <<-eos
         UPDATE
@@ -122,11 +122,11 @@ module BulkUpsert
 
       <<-eos
         WITH #{opts[:merge_table]} AS (
-          #{merge_query(models, opts)}
+          #{merge_query(models, **opts)}
         ), updated AS (
-          #{update_query(models, opts)}
+          #{update_query(models, **opts)}
         ), inserted AS (
-          #{insert_query(models, opts)}
+          #{insert_query(models, **opts)}
         )
         SELECT * FROM updated
         UNION
