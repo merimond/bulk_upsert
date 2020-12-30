@@ -164,7 +164,7 @@ module BulkUpsert
 
       unless options[:allow_nulls]
         unless list.map(&:keys).map(&:sort).uniq.count == 1
-          raise InconsitentAttrubuteError.new
+          raise InconsitentAttributeError.new
         end
         unless cols_with_nils.empty?
           raise MissingValueError.new(klass, cols_with_nils)

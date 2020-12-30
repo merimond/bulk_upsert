@@ -231,7 +231,7 @@ describe BulkUpsert::Query do
       first  = BulkUpsert.build Person, name: "John Doe"
       second = BulkUpsert.build Person, bio: 30
 
-      assert_raises BulkUpsert::InconsitentAttrubuteError do
+      assert_raises BulkUpsert::InconsitentAttributeError do
         BulkUpsert.save_group([first, second])
       end
     end

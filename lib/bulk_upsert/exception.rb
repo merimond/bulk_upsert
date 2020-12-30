@@ -14,7 +14,7 @@ module BulkUpsert
     end
   end
 
-  class InconsitentAttrubuteError < Error
+  class InconsitentAttributeError < Error
     def initialize
       super "Different sets of attributes are used for search"
     end
