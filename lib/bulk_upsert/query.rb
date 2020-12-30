@@ -1,21 +1,16 @@
 module BulkUpsert
-  class Query
-    attr_reader :klass, :models, :table
+  module Query
 
-    def initialize(models)
-      klasses = models.map(&:klass).uniq
+    DEFAULT_OPTIONS = {
+      merge_table:      "merged",
+      merge_key:        "_found_id",
+      allow_belongs_to: false,
+      ignore_conflicts: false,
+      allow_nulls:      false,
+      skip_find:        false,
+    }
 
-      if klasses.count > 1
-        raise MultipleClassesError.new(klasses.map(&:name))
-      end
-
-      @klass  = klasses.first
-      @table  = @klass.table_name
-      @pkey   = @klass.primary_key
-      @models = models
-    end
-
-    def merge_query(models, merge_key: "_found_id", **options)
+    def self.merge_query(models, model:, merge_key:, **options)
       models = models.uniq { |m| m.search_atts_as_json }
       search_list = models.map(&:search_atts_as_json)
       update_list = models.map(&:as_json)
@@ -23,82 +18,86 @@ module BulkUpsert
       search_json = ActiveRecord::Base.connection.quote(search_list.to_json)
       update_json = ActiveRecord::Base.connection.quote(update_list.to_json)
 
-      join = formatted_join_conditions(search_list, **options.merge(
-        input_table: "input",
-      ))
+      opts = options.merge(input_table: "input", model: model)
+      join = format_join_conditions(search_list, **opts)
 
       <<-eos
         SELECT
-          (jsonb_populate_record(NULL::#{table}, atts_to_update)).*,
-          #{table}.#{@pkey} AS #{merge_key}
+          (jsonb_populate_record(NULL::#{model.table_name}, atts_to_update)).*,
+          #{model.table_name}.#{model.primary_key} AS #{merge_key}
         FROM (
           SELECT
-            (jsonb_populate_recordset(NULL::#{table}, #{search_json})).*,
+            (jsonb_populate_recordset(NULL::#{model.table_name}, #{search_json})).*,
             (jsonb_array_elements(#{update_json})) AS atts_to_update
-        ) input
+        ) #{opts[:input_table]}
         LEFT JOIN
-          #{table}
+          #{model.table_name}
         ON
           #{join.join(" AND ")}
       eos
     end
 
-    def insert_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", ignore_conflicts: false, **options)
-      to_insert = (to_search | to_update) - [@pkey]
-      to_return = (to_insert | [@pkey]).sort
-
+    def self.insert_query(models, model:, to_search:, to_update:, merge_table:, merge_key:, ignore_conflicts: false, **options)
+      to_insert = (to_search | to_update) - [model.primary_key]
+      to_return = (to_insert | [model.primary_key]).sort
 
       <<-eos
         INSERT INTO
-          #{table} (#{to_insert.join(", ")})
+          #{model.table_name} (#{to_insert.join(", ")})
         SELECT
           #{to_insert.join(", ")}
         FROM
           #{merge_table}
         WHERE
           #{merge_table}.#{merge_key} IS NULL
-        #{ignore_conflicts ? "ON CONFLICT DO NOTHING" : ""}
+          #{ignore_conflicts ? "ON CONFLICT DO NOTHING" : ""}
         RETURNING
           #{to_return.join(", ")}
       eos
     end
 
-    def update_query(models, to_search:, to_update:, merge_table: "merged", merge_key: "_found_id", **options)
-      cols = (to_search | to_update | [@pkey]).sort
+    def self.update_query(models, model:, to_search:, to_update:, merge_table:, merge_key:, **options)
+      cols = (to_search | to_update | [model.primary_key]).sort
       cols = cols.map { |a| "result.%s" % a }
-      atts = formatted_update_atts(models,
-        source_table: merge_table,
-        result_table: "result"
-      )
+
+      opts = { source_table: merge_table, result_table: "result" }
+      atts = format_update_atts(models, **opts)
 
       <<-eos
         UPDATE
-          #{table} AS result
+          #{model.table_name} AS #{opts[:result_table]}
         SET
-          #{atts.empty? ? "#{@pkey} = result.#{@pkey}" : atts.join(", ")}
+          #{atts.empty? ? "#{model.primary_key} = #{opts[:result_table]}.#{model.primary_key}" : atts.join(", ")}
         FROM
           #{merge_table}
         WHERE
-          result.#{@pkey} = #{merge_table}.#{merge_key}
+          #{opts[:result_table]}.#{model.primary_key} = #{merge_table}.#{merge_key}
         RETURNING
           #{cols.join(", ")}
       eos
     end
 
-    def to_sql(models, options = {})
+    def self.to_sql(models, allow_belongs_to: false, **options)
+      klasses = models.map(&:klass).uniq
+      model   = klasses.first
+
+      if klasses.count > 1
+        raise MultipleClassesError.new(klasses.map(&:name))
+      end
+
       to_search = models.map(&:columns_to_search).flatten.uniq
       to_update = models.map(&:columns_to_update).flatten.uniq
 
-      if to_update.include?(@pkey)
-        raise PrimaryKeyUpdateError.new(@pkey)
+      if to_update.include?(model.primary_key)
+        raise PrimaryKeyUpdateError.new(model.primary_key)
       end
 
       if to_search.empty?
         raise EmptySearchListError.new
       end
 
-      unless options[:allow_belongs_to]
-        klass.reflections.each do |key, ref|
+      unless allow_belongs_to
+        model.reflections.each do |key, ref|
           if ref.through_reflection?
             next
           end
@@ -109,15 +108,15 @@ module BulkUpsert
             next
           end
           if to_search.include?(col) || to_update.include?(col)
-            raise BelongsToDeficiencyError.new(col, klass)
+            raise BelongsToDeficiencyError.new(col, model)
           end
         end
       end
 
-      opts = options.merge({
+      opts = DEFAULT_OPTIONS.merge(options).merge({
+        model:       model,
         to_search:   to_search,
         to_update:   to_update,
-        merge_table: "merged"
       })
 
       <<-eos
@@ -134,13 +133,13 @@ module BulkUpsert
       eos
     end
 
-    def execute(options = {})
+    def self.execute(models, skip_id_assignment: false, **options)
       valid = models.reject(&:valid?)
       return [] if valid.empty?
 
-      query  = to_sql(valid, options)
+      query  = to_sql(valid, **options)
       result = ActiveRecord::Base.connection.execute(query)
-      return valid if options[:skip_id_assignment] == true
+      return valid if skip_id_assignment
 
       result.to_a.each do |row|
         models.each do |model|
@@ -151,42 +150,39 @@ module BulkUpsert
       valid
     end
 
-    private
-
-    def formatted_join_conditions(list, to_search:, input_table:, **options)
-      if options[:skip_find]
-        return ["#{table}.#{@pkey} = NULL"]
+    def self.format_join_conditions(list, model:, to_search:, input_table:, allow_nulls: false, skip_find: false, **options)
+      if skip_find
+        return ["#{model.table_name}.#{model.primary_key} = NULL"]
       end
 
       cols_with_nils = to_search.select do |col|
         list.any? { |hash| hash[col].nil? }
       end
 
-      unless options[:allow_nulls]
+      unless allow_nulls
         unless list.map(&:keys).map(&:sort).uniq.count == 1
           raise InconsitentAttributeError.new
         end
         unless cols_with_nils.empty?
-          raise MissingValueError.new(klass, cols_with_nils)
+          raise MissingValueError.new(model, cols_with_nils)
         end
       end
 
       to_search.map do |col|
-        has_nils = options[:allow_nulls] && cols_with_nils.include?(col)
+        has_nils = allow_nulls && cols_with_nils.include?(col)
         equality = has_nils ? "IS NOT DISTINCT FROM": "="
-        "#{table}.#{col} #{equality} #{input_table}.#{col}"
+        "#{model.table_name}.#{col} #{equality} #{input_table}.#{col}"
       end
     end
 
-    def formatted_update_atts(models, source_table:, result_table:)
-      flags = {}
-
-      models.each do |model|
+    def self.format_update_atts(models, source_table:, result_table:)
+      flags = models.reduce({}) do |result, model|
         model.atts_to_update.each do |att|
-          current = flags[att.name] ||= att.flag
+          current = result[att.name] ||= att.flag
           next if current == att.flag
           raise InconsitentFlagError.new(att.name, [current, att.flag])
         end
+        result
       end
 
       flags.map do |name, flag|
