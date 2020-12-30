@@ -38,12 +38,25 @@ module BulkUpsert
       if has_id?
         return self
       end
+
       match = atts.select(&:search?).all? do |att|
-        hash[att.name] == @update_model[att.name]
+        val = hash[att.name]
+        # PG will not parse JSON columns automatically
+        if @update_model[att.name].is_a?(Hash)
+          begin
+            val = JSON.parse(val)
+          rescue
+            val = nil
+          end
+        end
+
+        val == @update_model[att.name]
       end
+
       if match == true
         @id = hash["id"]
       end
+
       self
     end
 

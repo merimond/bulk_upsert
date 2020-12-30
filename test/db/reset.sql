@@ -5,7 +5,8 @@ CREATE TABLE people (
   id serial PRIMARY KEY,
   name varchar(30),
   age integer,
-  bio text
+  bio text,
+  extra jsonb
 );
 
 CREATE TABLE posts (

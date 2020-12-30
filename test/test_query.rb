@@ -169,6 +169,19 @@ describe BulkUpsert::Query do
     end
   end
 
+  describe "search atts include JSON values" do
+    it "creates new record" do
+      updated = BulkUpsert.build Person,
+        extra: { maiden_name: "Smith" }
+
+      BulkUpsert.save_group([updated])
+      refute_nil updated.id
+      assert_equal 1, Person.count
+      assert_equal "Smith", Person.first.extra["maiden_name"]
+    end
+
+  end
+
   describe "same attribute has multiple flags" do
     it "throws if specified within one model" do
       record = BulkUpsert.build Person, name: "John Doe"
