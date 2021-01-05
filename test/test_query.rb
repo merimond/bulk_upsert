@@ -157,8 +157,7 @@ describe BulkUpsert::Query do
 
   describe "search atts include NULL values" do
     it "throws without `allow_nulls` flag" do
-      existing = Person.create name: "John Doe"
-      updated  = BulkUpsert.build Person,
+      updated = BulkUpsert.build Person,
         { name: "John Doe", age: nil },
         { age: 30 }
 
