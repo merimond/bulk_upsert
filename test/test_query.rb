@@ -39,12 +39,23 @@ describe BulkUpsert::Query do
   end
 
   describe "list contains duplicates" do
-    it "inserts only one record" do
+    it "inserts only one record by default" do
       first  = BulkUpsert.build Person, name: "John Doe"
       second = BulkUpsert.build Person, name: "John Doe"
   
       BulkUpsert.save_group([first, second])
       assert_equal 1, Person.count
+      refute_nil first.id
+      refute_nil second.id
+    end
+
+    it "inserts all duplicates when `skip_find` flag is set" do
+      first  = BulkUpsert.build Person, name: "John Doe"
+      second = BulkUpsert.build Person, name: "John Doe"
+  
+      BulkUpsert.save_group([first, second], skip_find: true)
+      assert_equal 2, Person.count
+      refute_equal first.id, second.id
       refute_nil first.id
       refute_nil second.id
     end

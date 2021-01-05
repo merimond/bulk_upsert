@@ -38,6 +38,12 @@ module BulkUpsert
     end
   end
 
+  class ResultCountMismatch < Error
+    def initialize(result, models)
+      super "Expected #{model.count} new rows for #{models.first.klass.name}, got #{result.count} instead"
+    end
+  end
+
   class EmptySearchListError < Error
     def initialize
       super "Search attributes are empty"

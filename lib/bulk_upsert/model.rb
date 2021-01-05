@@ -1,7 +1,8 @@
 module BulkUpsert
   class Model
 
-    attr_reader :id, :atts, :klass, :search_model, :update_model
+    attr_accessor :id
+    attr_reader :atts, :klass, :search_model, :update_model
 
     alias_method :model, :update_model
 

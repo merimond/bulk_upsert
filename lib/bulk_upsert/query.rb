@@ -77,7 +77,24 @@ module BulkUpsert
       eos
     end
 
-    def self.to_sql(models, allow_belongs_to: false, **options)
+    def self.straight_insert_query(models, model:, to_search:, to_update:, **options)
+      to_insert = (to_search | to_update) - [model.primary_key]
+      update_list = models.map(&:as_json)
+      update_json = ActiveRecord::Base.connection.quote(update_list.to_json)
+
+      <<-eos
+        INSERT INTO
+          #{model.table_name} (#{to_insert.join(", ")})
+        SELECT
+          #{to_insert.join(", ")}
+        FROM
+          jsonb_populate_recordset(NULL::#{model.table_name}, #{update_json})
+        RETURNING
+          id
+      eos
+    end
+
+    def self.to_sql(models, allow_belongs_to: false, skip_find: false, **options)
       klasses = models.map(&:klass).uniq
       model   = klasses.first
 
@@ -92,9 +109,11 @@ module BulkUpsert
         raise PrimaryKeyUpdateError.new(model.primary_key)
       end
 
-      if to_search.empty?
-        raise EmptySearchListError.new
-      end
+      opts = DEFAULT_OPTIONS.merge(options).merge({
+        model:       model,
+        to_search:   to_search,
+        to_update:   to_update,
+      })
 
       unless allow_belongs_to
         model.reflections.each do |key, ref|
@@ -113,11 +132,13 @@ module BulkUpsert
         end
       end
 
-      opts = DEFAULT_OPTIONS.merge(options).merge({
-        model:       model,
-        to_search:   to_search,
-        to_update:   to_update,
-      })
+      if skip_find
+        return straight_insert_query(models, **opts)
+      end
+
+      if to_search.empty?
+        raise EmptySearchListError.new
+      end
 
       <<-eos
         WITH #{opts[:merge_table]} AS (
@@ -133,28 +154,35 @@ module BulkUpsert
       eos
     end
 
+    def self.assign_ids(models, result, skip_find: false, **options)
+      if skip_find
+        if result.count != models.count
+          raise ResultCountMismatch.new(result, models)
+        end
+        return models.each_with_index do |model, idx|
+          model.id = result[idx]["id"]
+        end
+      end
+
+      models.each do |model|
+        result.each do |row|
+          model.assign_id_from_hash(row)
+        end
+      end
+    end
+
     def self.execute(models, skip_id_assignment: false, **options)
       valid = models.reject(&:valid?)
       return [] if valid.empty?
 
       query  = to_sql(valid, **options)
-      result = ActiveRecord::Base.connection.execute(query)
-      return valid if skip_id_assignment
-
-      result.to_a.each do |row|
-        models.each do |model|
-          model.assign_id_from_hash(row)
-        end
-      end
+      result = ActiveRecord::Base.connection.execute(query).to_a
+      assign_ids(valid, result, **options) unless skip_id_assignment
 
       valid
     end
 
-    def self.format_join_conditions(list, model:, to_search:, input_table:, allow_nulls: false, skip_find: false, **options)
-      if skip_find
-        return ["#{model.table_name}.#{model.primary_key} = NULL"]
-      end
-
+    def self.format_join_conditions(list, model:, to_search:, input_table:, allow_nulls: false, **options)
       cols_with_nils = to_search.select do |col|
         list.any? { |hash| hash[col].nil? }
       end
