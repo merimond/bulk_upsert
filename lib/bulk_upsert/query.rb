@@ -171,12 +171,13 @@ module BulkUpsert
       end
     end
 
-    def self.execute(models, skip_id_assignment: false, **options)
+    def self.execute(models, connection: nil, skip_id_assignment: false, **options)
       valid = models.reject(&:valid?)
       return [] if valid.empty?
 
-      query  = to_sql(valid, **options)
-      result = ActiveRecord::Base.connection.execute(query).to_a
+      query = to_sql(valid, **options)
+      connection ||= ActiveRecord::Base.connection
+      result = connection.execute(query).to_a
       assign_ids(valid, result, **options) unless skip_id_assignment
 
       valid
