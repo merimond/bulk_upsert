@@ -49,7 +49,7 @@ module BulkUpsert
     group = list.find { |g| g.all?(&:ready?) } ||
             list.find { |g| g.any?(&:ready?) }
 
-    if group.nil? && models.all?(&:valid?)
+    if group.nil? && models.all?(&:invalid?)
       return []
     end
 

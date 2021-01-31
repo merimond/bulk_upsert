@@ -172,7 +172,7 @@ module BulkUpsert
     end
 
     def self.execute(models, connection: nil, skip_id_assignment: false, **options)
-      valid = models.reject(&:valid?)
+      valid = models.reject(&:invalid?)
       return [] if valid.empty?
 
       query = to_sql(valid, **options)

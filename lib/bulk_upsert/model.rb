@@ -77,7 +77,7 @@ module BulkUpsert
       atts_to_update.map(&:name).uniq
     end
 
-    def valid?
+    def invalid?
       assign_to_model!; !@update_model.valid?
     end
 
