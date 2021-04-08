@@ -40,7 +40,7 @@ module BulkUpsert
         return self
       end
 
-      match = atts.select(&:search?).all? do |att|
+      match = atts_to_search.all? do |att|
         val = hash[att.name]
         # PG will not parse JSON columns automatically
         if @update_model[att.name].is_a?(Hash)
@@ -124,6 +124,7 @@ module BulkUpsert
     end
 
     def add_att(name, value, flag = nil)
+      @id = value if name == "id"
       col = @assoc_columns[name.to_s] || name.to_s
       atts << Attribute.new(col, value, flag)
     end

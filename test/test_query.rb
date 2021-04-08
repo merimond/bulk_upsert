@@ -224,6 +224,15 @@ describe BulkUpsert::Query do
     end
   end
 
+  describe "ID column in included as an attribute to search" do
+    it "throws when saving" do
+      person = BulkUpsert.build Person, { id: 65465465 }
+      BulkUpsert.save_group([person])
+      assert_equal 65465465, person.id
+      assert_equal 1, Person.count
+    end
+  end
+
   describe "ID column in included as an attribute to update" do
     it "throws when saving" do
       record = BulkUpsert.build Person,

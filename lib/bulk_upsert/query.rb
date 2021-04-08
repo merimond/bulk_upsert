@@ -38,7 +38,7 @@ module BulkUpsert
     end
 
     def self.insert_query(models, model:, to_search:, to_update:, merge_table:, merge_key:, ignore_conflicts: false, **options)
-      to_insert = (to_search | to_update) - [model.primary_key]
+      to_insert = (to_search | to_update)
       to_return = (to_insert | [model.primary_key]).sort
 
       <<-eos
@@ -165,6 +165,9 @@ module BulkUpsert
       end
 
       models.each do |model|
+        if model.has_id?
+          next
+        end
         result.each do |row|
           model.assign_id_from_hash(row)
         end
