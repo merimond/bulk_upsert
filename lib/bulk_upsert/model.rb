@@ -7,9 +7,10 @@ module BulkUpsert
     alias_method :model, :update_model
 
     def initialize(klass, atts_to_search = {})
-      @id    = atts_to_search[:id]
-      @atts  = []
+      @id = atts_to_search[:id]
+      @atts = []
       @klass = klass
+      @optional = false
 
       @search_model = klass.new
       @update_model = klass.new
@@ -77,6 +78,10 @@ module BulkUpsert
       atts_to_update.map(&:name).uniq
     end
 
+    def valid?
+      assign_to_model!; @update_model.valid?
+    end
+
     def invalid?
       assign_to_model!; !@update_model.valid?
     end
@@ -110,6 +115,14 @@ module BulkUpsert
 
     def as_json
       @update_model.attributes
+    end
+
+    def mark_as_optional!
+      @optional = true; self
+    end
+
+    def optional?
+      @optional == true
     end
 
     private

@@ -2,6 +2,18 @@ module BulkUpsert
 
   class Error < StandardError; end
 
+  class ValidModelsMissingError < Error
+    def initialize(klasses)
+      super "Failed to find valid models for #{klasses.join(", ")}"
+    end
+  end
+
+  class PendingInvalidModelsError < Error
+    def initialize(klasses)
+      super "Invalid models remaning for #{klasses.join(", ")}"
+    end
+  end
+
   class MultipleClassesError < Error
     def initialize(names)
       super "Models must be instance of 1 class, got #{names.join(", ")}"

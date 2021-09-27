@@ -78,14 +78,24 @@ describe BulkUpsert::Query do
   end
 
   describe "list contains invalid models" do
-    it "skips invalid models" do
+    it "skips invalid models when optional flag is set" do
       valid   = BulkUpsert.build Post, topic: "Test"
       invalid = BulkUpsert.build Post, topic: nil
+      invalid.mark_as_optional!
       BulkUpsert.save_group([valid, invalid])
   
       assert_equal 1, Post.count
       assert_nil invalid.id
       refute_nil valid.id
+    end
+
+    it "throws when optional flag is not set" do
+      valid   = BulkUpsert.build Post, topic: "Test"
+      invalid = BulkUpsert.build Post, topic: nil
+      
+      assert_raises BulkUpsert::PendingInvalidModelsError do
+        BulkUpsert.save_group([valid, invalid])
+      end
     end
   end
 

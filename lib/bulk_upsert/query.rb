@@ -175,8 +175,17 @@ module BulkUpsert
     end
 
     def self.execute(models, connection: nil, skip_id_assignment: false, **options)
-      valid = models.reject(&:invalid?)
-      return [] if valid.empty?
+      valid = models.select(&:valid?)
+      bad = models.select(&:invalid?).reject(&:optional?)
+
+      if valid.empty?
+        return []
+      end
+
+      unless bad.empty?
+        klasses = models.map(&:klass).map(&:name).uniq
+        raise PendingInvalidModelsError.new(klasses)
+      end
 
       query = to_sql(valid, **options)
       connection ||= ActiveRecord::Base.connection

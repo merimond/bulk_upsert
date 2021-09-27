@@ -50,7 +50,8 @@ module BulkUpsert
             list.find { |g| g.any?(&:ready?) }
 
     if group.nil? && models.all?(&:invalid?)
-      return []
+      klasses = models.map(&:klass).map(&:name).uniq
+      raise ValidModelsMissingError.new(klasses)
     end
 
     current = save_group(group, *args)
