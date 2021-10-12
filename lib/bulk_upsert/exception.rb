@@ -9,8 +9,8 @@ module BulkUpsert
   end
 
   class PendingInvalidModelsError < Error
-    def initialize(klasses)
-      super "Invalid models remaning for #{klasses.join(", ")}"
+    def initialize(klasses, messages = [])
+      super "Validation errors in #{klasses.join(", ")}: #{messages.join(", ")}"
     end
   end
 

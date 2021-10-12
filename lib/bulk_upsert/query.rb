@@ -178,13 +178,14 @@ module BulkUpsert
       valid = models.select(&:valid?)
       bad = models.select(&:invalid?).reject(&:optional?)
 
-      if valid.empty?
-        return []
-      end
-
       unless bad.empty?
         klasses = models.map(&:klass).map(&:name).uniq
-        raise PendingInvalidModelsError.new(klasses)
+        messages = models.map(&:errors).uniq
+        raise PendingInvalidModelsError.new(klasses, messages)
+      end
+
+      if valid.empty?
+        return []
       end
 
       query = to_sql(valid, **options)

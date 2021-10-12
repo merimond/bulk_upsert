@@ -86,6 +86,10 @@ module BulkUpsert
       assign_to_model!; !@update_model.valid?
     end
 
+    def errors
+      assign_to_model!; @update_model.errors.map(&:full_message)
+    end
+
     def ready?
       atts.all?(&:resolved?)
     end
