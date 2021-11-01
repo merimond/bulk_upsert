@@ -120,6 +120,9 @@ module BulkUpsert
           if ref.through_reflection?
             next
           end
+          unless ref.belongs_to?
+            next
+          end
           unless col = ref.foreign_key
             next
           end
