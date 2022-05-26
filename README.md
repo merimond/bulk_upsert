@@ -49,10 +49,10 @@ For instance, you may want to update the `name` column only when it's `NULL`, ot
 # value or the value of `new_name`:
 model.always :name, new_name
 
-# Update `name` column only if its current value is NULL:
+# Update `name` column only if the new value is not nil
 model.prefer :name, new_name
 
-# Update `name` column only if `new_name` is *not* NULL:
+# Update `name` column only if existing value is nil 
 model.maybe :name, new_name
 ```
 
@@ -65,6 +65,11 @@ model = BulkUpsert.build Company, { id: row["id"] }, { name: row["name"] }
 model = BulkUpsert.build Company, { id: row["id"] }
 model.always :name, row["name"]
 ```
+
+## Flags
+
+`skip_find` - will force an INSERT, instead of an UPSERT
+`skip_id_assignment`
 
 ## Declarative format
 
