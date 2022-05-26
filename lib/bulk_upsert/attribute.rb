@@ -17,6 +17,18 @@ module BulkUpsert
       flag == :search
     end
 
+    def maybe?
+      flag === :maybe
+    end
+
+    def prefer?
+      flag === :prefer
+    end
+
+    def always?
+      flag === :always
+    end
+
     def resolved?
       @value.instance_of?(Model) ? @value.has_id? : true
     end

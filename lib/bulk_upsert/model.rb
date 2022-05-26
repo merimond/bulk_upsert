@@ -136,6 +136,7 @@ module BulkUpsert
         @search_model.send "#{att.name}=", att.value
       end
       atts.each do |att|
+        next if att.value.nil? && !att.always?
         @update_model.send "#{att.name}=", att.value
       end
     end
